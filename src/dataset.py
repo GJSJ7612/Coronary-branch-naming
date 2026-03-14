@@ -5,9 +5,26 @@ from torch_geometric.data import Dataset
 from data_process import data_process
 from torch_geometric.data import Data
 
+class OffsetData(Data):
+    def __inc__(self, key, value, *args, **kwargs):
+        if key == 'edge_patch_index':
+            # 每次 batch 合并时，该字段加上当前图的边数
+            return self.num_edges
+        return super().__inc__(key, value, *args, **kwargs)
+
+    def __cat_dim__(self, key, value, *args, **kwargs):
+        # edge_patch_index 沿 dim=0 拼接（默认行为，显式声明更安全）
+        if key == 'edge_patch':
+            return 0   # 沿 batch 维度拼接，shape [N,1,D,H,W] → dim=0 是N
+        return super().__cat_dim__(key, value, *args, **kwargs)
+
 class ArteryDataset(Dataset):
-    def __init__(self, data_path="/home/gjsj/project/undergraduate/data/Input", num_samples=100):
+    def __init__(self, data_path=None, num_samples=100):
         super().__init__(None)
+        if data_path is None:
+            # 相对于当前脚本文件的路径
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            data_path = os.path.join(base_dir, "../data/Input")
         self.data_path = data_path
         self.num_samples = num_samples
 
@@ -16,8 +33,8 @@ class ArteryDataset(Dataset):
 
     def get(self, idx):
         # 读取数据与label
-        image_path = os.path.join(self.data_path, f"{idx}.img.nii.gz")
-        data_path = os.path.join(self.data_path, f"{idx}.label.nrrd")
+        image_path = os.path.join(self.data_path, f"{idx+1}.img.nii.gz")
+        data_path = os.path.join(self.data_path, f"{idx+1}.label.nrrd")
         G = data_process(data_path, image_path)
 
         # ======== 1. 构建 edge_index ========
@@ -44,12 +61,36 @@ class ArteryDataset(Dataset):
         edge_y = torch.tensor(edge_labels, dtype=torch.long)
 
         # ======== 4. 构建 Data 对象 ========
-        data = Data(
+        data = OffsetData(
             x=x,
             edge_index=edge_index,
             edge_attr=edge_attr,
             edge_y=edge_y,
         )
+        data.graph = G
+
+        # ======== 5. 构建 edge 的图像特征 ========
+        patches = []
+        edge_idx = []
+
+        for edge_id, (u, v) in enumerate(edges):
+
+            edge = G.edges[u, v]
+            images = edge.get("image") # [L, D, H, W]
+
+            for patch in images:
+
+                patch = torch.tensor(patch, dtype=torch.float32)
+                patch = patch.unsqueeze(0)   # [1,D,H,W]
+
+                patches.append(patch)
+                edge_idx.append(edge_id)
+        
+        patch_tensor = torch.stack(patches)  # [N,1,D,H,W]
+        edge_idx = torch.tensor(edge_idx)    # [N]
+
+        data.edge_patch = patch_tensor
+        data.edge_patch_index = edge_idx
 
         assert edge_index.max() < x.size(0), "edge_index 越界"
         assert edge_index.min() >= 0, "出现负编号"

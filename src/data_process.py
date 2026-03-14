@@ -3,6 +3,8 @@ import nibabel as nib
 from skimage.morphology import skeletonize, ball, erosion
 from scipy import ndimage as ndi
 import networkx as nx
+import matplotlib
+matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 import SimpleITK as sitk
 import napari
@@ -13,6 +15,7 @@ import utils
 # -------------------------
 
 control_point_num = 10  # 选取控制点的数量
+cube_size = 24  # 3D立方体的直径
 
 # -------------------------
 
@@ -265,19 +268,31 @@ def delete_short_edges(graph, min_length=5):
     return graph
 
 
-def select_control_points(graph, num_points=control_point_num):
+# def select_control_points(graph, num_points=control_point_num):
+#     """
+#     从边中均匀选取控制点
+#     """
+#     for u, v in graph.edges():
+#         length = graph.edges[u, v]["length"]
+#         path = np.array(graph.edges[u, v]["pixels"])
+#         if length <= num_points:
+#             continue
+#         indices = np.linspace(0, length - 1, num_points).astype(int)
+#         control_points = path[indices]
+#         graph.edges[u, v]["control_points"] = control_points
+
+def select_control_points(graph, step=10):
     """
-    从边中均匀选取控制点
+    每隔固定步长选取控制点，保证稀疏且均匀
     """
     for u, v in graph.edges():
         length = graph.edges[u, v]["length"]
         path = np.array(graph.edges[u, v]["pixels"])
-        if length <= num_points:
-            continue
-        indices = np.linspace(0, length - 1, num_points).astype(int)
+        indices = np.arange(0, length, step)
+        if indices[-1] != length - 1:
+            indices = np.append(indices, length - 1)  # 确保包含末尾点
         control_points = path[indices]
         graph.edges[u, v]["control_points"] = control_points
-
 
 def smooth_edge(graph):
     """
@@ -398,6 +413,45 @@ def extract_position_features(graph):
         graph.edges[u, v]["z_axis"] = z_axis.reshape(1, -1)
         graph.edges[u, v]["y_axis"] = y_axis.reshape(1, -1)
 
+def extract_img_features(graph, img_array, cube_size=cube_size):
+    """
+    在图的每条边的 control_points 位置提取 3D 影像 patch
+    """
+    
+    # 获取每条边的图像特征序列
+    half = cube_size // 2
+    W, D, H = img_array.shape  # correspond x,y,z order
+    for u, v, data in graph.edges(data=True):
+
+        patches = []
+        control_points = data.get("control_points", [])
+        for pt in control_points:
+            x, y, z = map(int, pt)
+
+            # 计算patch边界
+            x1, x2 = x - half, x + half
+            y1, y2 = y - half, y + half
+            z1, z2 = z - half, z + half
+
+            # 创建空patch
+            patch = np.zeros((cube_size, cube_size, cube_size), dtype=img_array.dtype)
+
+            # 计算有效范围（避免越界）
+            xs1, xs2 = max(0, x1), min(W, x2)
+            ys1, ys2 = max(0, y1), min(D, y2)
+            zs1, zs2 = max(0, z1), min(H, z2)
+
+            # 对应到patch中的位置
+            px1, px2 = xs1 - x1, xs2 - x1
+            py1, py2 = ys1 - y1, ys2 - y1
+            pz1, pz2 = zs1 - z1, zs2 - z1
+
+            # 复制数据
+            patch[px1:px2, py1:py2, pz1:pz2] = img_array[xs1:xs2, ys1:ys2, zs1:zs2]
+            patches.append(patch)
+
+        graph.edges[(u, v)]["image"] = patches
+
 def assign_edge_labels(graph, label_volume):
     """
     为每条边分配标签（沿边像素链在 label_volume 上做多数投票）
@@ -424,6 +478,8 @@ def assign_edge_labels(graph, label_volume):
 def plot_graph_3d(graph):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
+
+    # 打印平滑化结果
     for u, v, data in graph.edges(data=True):
         if "centerline" in data:
             path = np.array(data["centerline"])
@@ -431,17 +487,60 @@ def plot_graph_3d(graph):
             path = np.array(data["pixels"])
         ax.plot(
             path[:, 0], path[:, 1], path[:, 2], "r-", linewidth=0.5
-        )  # 在差距只有1像素的时候就开始随便链
+        )
         path = np.array(data["pixels"])
         ax.plot(
             path[:, 0], path[:, 1], path[:, 2], "b-", linewidth=0.5
-        )  # 在差距只有1像素的时候就开始随便链
-    nodes = np.array(list(graph.nodes))
-    for node in nodes:
-        if graph.degree(tuple(node)) == 1:
-            ax.scatter(node[0], node[1], node[2], c="g", s=50, marker="^")  # 端点
-        elif graph.degree(tuple(node)) >= 3:
-            ax.scatter(node[0], node[1], node[2], c="b", s=50, marker="o")  # 交点
+        )
+    
+    #打印节点
+    for node, attr in graph.nodes(data=True):
+        coord = attr["pos"]  # 坐标
+        deg = graph.degree(node)
+
+        if deg == 1:
+            ax.scatter(coord[0], coord[1], coord[2], c="g", s=50, marker="^")  # 端点
+        elif deg >= 3:
+            ax.scatter(coord[0], coord[1], coord[2], c="b", s=50, marker="o")  # 交点
+    plt.show()
+
+def plot_graph_3d_with_label(graph, label_array):
+    """
+    使用传入的 label_array 给图的边上色绘制 3D 图
+    
+    参数:
+        graph: NetworkX 图对象，要求每个节点有 "pos" 属性，每条边有 "pixels" 或 "centerline"
+        label_array: np.array 或 list, 长度 = 图中边数，对应每条边的类别
+    """
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection="3d")
+    color_map = {0: "r", 1: "g", 2: "b", 3: "c", 4: "m"}  # 可以根据类别自定义颜色
+
+    # edges 按顺序列表
+    edges = list(graph.edges())
+    
+    if len(edges) != len(label_array):
+        raise ValueError(f"label_array 长度 {len(label_array)} 与图边数 {len(edges)} 不匹配")
+
+    # 给每条边加 label，然后绘制
+    for i, (u, v) in enumerate(edges):
+        data = graph.edges[u, v]
+        data['label'] = int(label_array[i])  # 把 label_array 映射到边上
+        
+        # 绘制边
+        path = np.array(data.get("pixels"))
+        color = color_map.get(data['label'], "k")  # 默认黑色
+        ax.plot(path[:,0], path[:,1], path[:,2], color=color, linewidth=0.5)
+    
+    # 绘制节点
+    for node, attr in graph.nodes(data=True):
+        coord = attr["pos"]
+        deg = graph.degree(node)
+        if deg == 1:
+            ax.scatter(coord[0], coord[1], coord[2], c="g", s=50, marker="^")  # 端点
+        elif deg >= 3:
+            ax.scatter(coord[0], coord[1], coord[2], c="b", s=50, marker="o")  # 交点
+
     plt.show()
 
 def dump_graph(graph):
@@ -472,7 +571,7 @@ def data_process(data_path, img_path):
 
     # 对影像、冠脉模型、标注进行重采样
     new_spacing = (0.5, 0.5, 0.5)  # 目标体素间距(mm)
-    img_resampled = image_resample(data, new_spacing, is_label=False)
+    img_resampled = image_resample(img, new_spacing, is_label=False)
     data_resampled = image_resample(data, new_spacing, is_label=False)
     label_resampled = image_resample(data, new_spacing, is_label=True)
 
@@ -494,15 +593,16 @@ def data_process(data_path, img_path):
     graph = delete_short_edges(graph, min_length=5)
 
     # 平滑中心线
-    select_control_points(graph, num_points=10)
+    select_control_points(graph, step=10)
     smooth_edge(graph)
 
     # 计算位置域特征
     extract_position_features(graph)
-    assign_edge_labels(graph, label_array)
 
     # 计算图像域特征
-    # Todo
+    extract_img_features(graph, img_array)
 
-    # dump_graph(graph)
+    # 分配标签
+    assign_edge_labels(graph, label_array)
+
     return graph

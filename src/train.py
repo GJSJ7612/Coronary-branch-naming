@@ -1,4 +1,5 @@
 import torch
+from datetime import datetime
 import torch.optim as optim
 import numpy as np
 from dataset import ArteryDataset
@@ -26,7 +27,6 @@ min_lr = 1e-6  # CosineAnnealing 的最小学习率
 # -------------------------
 
 dataset = ArteryDataset()
-# writer = SummaryWriter(log_dir)
 
 # 分割数据集
 train_set, val_set, test_set = split_dataset(dataset, test_size, val_size, seed)
@@ -64,7 +64,7 @@ def train(model, data_loader, optimizer, criterion, device, epoch):
         data = data.to(device)
         optimizer.zero_grad()
 
-        out = model(data.x, data.edge_index, data.edge_attr)
+        out = model(data.edge_patch, data.x, data.edge_index, data.edge_attr, data.edge_patch_index)
         loss = criterion(out, data.edge_y)
         loss.backward()
         optimizer.step()
@@ -83,7 +83,7 @@ def test(model, data_loader, device, epoch):
     with torch.no_grad():
         for data in data_loader:
             data = data.to(device)
-            out = model(data.x, data.edge_index, data.edge_attr)
+            out = model(data.edge_patch, data.x, data.edge_index, data.edge_attr, data.edge_patch_index)
             preds = out.argmax(dim=1)
 
             all_preds.append(preds.cpu().numpy())
@@ -99,6 +99,7 @@ def test(model, data_loader, device, epoch):
 # Training Loop
 # -------------------------
 print("Starting training...")
+time_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 for epoch in range(num_epochs):
     loss = train(model, train_loader, optimizer, criterion, device, epoch)
 
@@ -113,10 +114,11 @@ for epoch in range(num_epochs):
         # 保存验证集最佳模型
         if val_acc > best_val_acc:
             best_val_acc = val_acc
-            best_model_path = os.path.join(save_dir, "best_validation.pth")
+            
+            best_model_path = os.path.join(save_dir, f"best_validation_{time_str}.pth")
             torch.save(model.state_dict(), best_model_path)
             print(f"Best model saved at epoch {epoch+1}, acc={val_acc:.4f}")
 
-final_model_path = os.path.join(save_dir, "final.pth")
+final_model_path = os.path.join(save_dir, f"final_{time_str}.pth")
 torch.save(model.state_dict(), final_model_path)
 print(f"Training complete. Final model saved: {final_model_path}")
