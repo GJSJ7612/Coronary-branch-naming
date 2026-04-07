@@ -8,7 +8,7 @@ matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 import SimpleITK as sitk
 import napari
-import utils
+from .spline import catmull_rom_spline
 
 # -------------------------
 #  配置参数
@@ -302,7 +302,7 @@ def smooth_edge(graph):
         if "control_points" not in graph.edges[u, v]:
             continue
         control_points = graph.edges[u, v]["control_points"]
-        smoothed_path = utils.catmull_rom_spline(control_points, num_points=50)
+        smoothed_path = catmull_rom_spline(control_points, num_points=50)
         graph.edges[u, v]["centerline"] = smoothed_path 
 
 
@@ -567,7 +567,7 @@ def dump_graph(graph):
 # ---------- 主流程 ----------
 def data_process(data_path, img_path):
     data = sitk.ReadImage(data_path)  # 512*512*275
-    img = sitk.ReadImage(data_path)  # 512*512*275
+    img = sitk.ReadImage(img_path)  # 512*512*275
 
     # 对影像、冠脉模型、标注进行重采样
     new_spacing = (0.5, 0.5, 0.5)  # 目标体素间距(mm)

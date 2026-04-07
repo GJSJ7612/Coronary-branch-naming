@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>冠状动脉分支命名系统</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400&family=Syne:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #07090f;
+  --bg2:      #0d1018;
+  --bg3:      #141720;
+  --border:   rgba(255,255,255,0.07);
+  --border2:  rgba(255,255,255,0.13);
+  --text:     #c8ccd8;
+  --text2:    #5e6270;
+  --accent:   #4a9eff;
+  --lm:       #5DB8E8;
+  --lad:      #E8C76A;
+  --lcx:      #7DE89A;
+  --rca:      #E87A5D;
+  --other:    #A0A0B0;
+  --r: 10px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ── */
+header {
+  padding: 18px 32px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--bg2);
+}
+.logo-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  flex-shrink: 0;
+}
+header h1 {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: #e0e3f0;
+}
+header span {
+  margin-left: auto;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--text2);
+  letter-spacing: 0.08em;
+}
+
+/* ── Layout ── */
+.app {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow-y: auto;
+}
+
+.section {
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.section-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: var(--text2);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+/* Upload zone */
+.upload-zone {
+  border: 1px dashed var(--border2);
+  border-radius: var(--r);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  position: relative;
+}
+.upload-zone:hover { border-color: var(--accent); background: rgba(74,158,255,0.04); }
+.upload-zone.has-file { border-color: rgba(74,158,255,0.4); }
+.upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+
+.upload-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.upload-icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.upload-icon svg { width: 14px; height: 14px; }
+.upload-text { font-size: 12px; }
+.upload-text strong { display: block; font-size: 12px; font-weight: 500; color: #e0e3f0; margin-bottom: 2px; }
+.upload-text span { color: var(--text2); font-size: 11px; }
+
+.file-indicator {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--border2);
+  margin-left: auto;
+  flex-shrink: 0;
+  transition: background .2s;
+}
+.file-indicator.ready { background: #7DE89A; box-shadow: 0 0 6px #7DE89A; }
+
+/* Dual upload */
+.dual-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.single-upload {
+  border: 1px dashed var(--border2);
+  border-radius: var(--r);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  position: relative;
+  overflow: hidden;
+}
+.single-upload:hover { border-color: var(--accent); background: rgba(74,158,255,0.04); }
+.single-upload.ready { border-color: rgba(125,232,154,0.4); }
+.single-upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.single-upload .filename {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--text2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+.single-upload .filename.set { color: #7DE89A; }
+
+/* Buttons */
+.btn {
+  width: 100%;
+  padding: 11px;
+  border-radius: 8px;
+  border: none;
+  font-family: 'Syne', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: all .2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover { background: #5ba8ff; }
+.btn-primary:disabled { background: var(--bg3); color: var(--text2); cursor: not-allowed; }
+
+.btn-predict {
+  background: linear-gradient(135deg, #1a3a5c 0%, #0d2040 100%);
+  border: 1px solid rgba(74,158,255,0.3);
+  color: var(--accent);
+}
+.btn-predict:hover { border-color: var(--accent); background: rgba(74,158,255,0.1); }
+.btn-predict:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Status */
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--bg3);
+  font-size: 12px;
+  min-height: 38px;
+}
+.status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.status-dot.idle    { background: var(--text2); }
+.status-dot.loading { background: #E8C76A; animation: pulse 1s ease-in-out infinite; }
+.status-dot.success { background: #7DE89A; }
+.status-dot.error   { background: var(--rca); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* Legend */
+.legend { display: flex; flex-direction: column; gap: 8px; }
+.legend-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg3);
+  cursor: pointer;
+  transition: background .15s;
+  border: 1px solid transparent;
+}
+.legend-item:hover { background: rgba(255,255,255,0.04); }
+.legend-item.active { border-color: var(--border2); }
+.legend-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+.legend-name { font-size: 12px; font-weight: 500; flex: 1; }
+.legend-full { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text2); }
+.legend-count { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text2); margin-left: auto; }
+
+/* Controls */
+.controls { display: flex; flex-direction: column; gap: 8px; }
+.ctrl-row { display: flex; align-items: center; gap: 10px; }
+.ctrl-label { font-size: 11px; color: var(--text2); width: 72px; flex-shrink: 0; }
+input[type=range] {
+  flex: 1;
+  -webkit-appearance: none;
+  height: 3px;
+  background: var(--bg3);
+  border-radius: 2px;
+  outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+.ctrl-val { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text2); width: 28px; text-align: right; }
+
+.toggle-row { display: flex; gap: 6px; }
+.toggle-btn {
+  flex: 1;
+  padding: 7px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text2);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all .15s;
+  font-family: 'Syne', sans-serif;
+}
+.toggle-btn:hover { border-color: var(--border2); color: var(--text); }
+.toggle-btn.on { border-color: var(--accent); color: var(--accent); background: rgba(74,158,255,0.08); }
+
+/* ── Viewport ── */
+.viewport {
+  position: relative;
+  background: radial-gradient(ellipse at 40% 40%, #0d1428 0%, var(--bg) 70%);
+  overflow: hidden;
+}
+
+#three-canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Overlay hint */
+.hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+  transition: opacity .4s;
+}
+.hint-icon {
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  border: 1px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px;
+}
+.hint h2 { font-size: 15px; font-weight: 500; color: #e0e3f0; margin-bottom: 8px; }
+.hint p  { font-size: 12px; color: var(--text2); line-height: 1.6; }
+
+/* Tooltip */
+#tooltip {
+  position: absolute;
+  top: 16px; left: 16px;
+  background: rgba(7,9,15,0.9);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s;
+  backdrop-filter: blur(8px);
+  min-width: 120px;
+}
+#tooltip.show { opacity: 1; }
+#tooltip .tt-name { font-weight: 500; color: #e0e3f0; margin-bottom: 3px; }
+#tooltip .tt-sub  { color: var(--text2); font-family: 'DM Mono', monospace; font-size: 10px; }
+
+/* Corner info */
+.corner-controls {
+  position: absolute;
+  bottom: 16px; right: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.corner-badge {
+  background: rgba(7,9,15,0.8);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--text2);
+  backdrop-filter: blur(8px);
+}
+
+/* Phase indicator */
+.phase-strip {
+  position: absolute;
+  top: 16px; right: 16px;
+  display: flex;
+  gap: 6px;
+}
+.phase-pill {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.06em;
+  border: 1px solid var(--border);
+  background: rgba(7,9,15,0.8);
+  color: var(--text2);
+  cursor: pointer;
+  transition: all .15s;
+}
+.phase-pill.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(74,158,255,0.1);
+}
+
+/* Loading overlay */
+#loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(7,9,15,0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  backdrop-filter: blur(4px);
+  z-index: 10;
+}
+#loading-overlay.show { display: flex; }
+.spinner {
+  width: 36px; height: 36px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 13px; color: var(--text); }
+.loading-sub  { font-size: 11px; color: var(--text2); font-family: 'DM Mono', monospace; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-dot"></div>
+  <h1>冠状动脉分支命名系统</h1>
+  <span>GNN · CCTA · 3D VIS</span>
+</header>
+
+<div class="app">
+  <!-- ─── Sidebar ─── -->
+  <aside class="sidebar">
+
+    <!-- Upload -->
+    <div class="section">
+      <div class="section-label">上传影像文件</div>
+      <div class="dual-upload">
+        <label class="single-upload" id="ccta-zone">
+          <input type="file" id="ccta-input" accept=".nii,.nii.gz,.nrrd">
+          <div class="upload-icon">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+              <rect x="2" y="2" width="12" height="12" rx="2"/>
+              <path d="M8 5v6M5.5 7.5L8 5l2.5 2.5"/>
+            </svg>
+          </div>
+          <div>
+            <div style="font-size:12px;font-weight:500;color:#e0e3f0;margin-bottom:2px;">CCTA 影像</div>
+            <div class="filename" id="ccta-filename">选择 .nii.gz 或 .nrrd 文件</div>
+          </div>
+          <div class="file-indicator" id="ccta-ind"></div>
+        </label>
+
+        <label class="single-upload" id="mask-zone">
+          <input type="file" id="mask-input" accept=".nii,.nii.gz,.nrrd">
+          <div class="upload-icon">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+              <path d="M3 8h10M8 3v10"/>
+              <rect x="2" y="2" width="12" height="12" rx="2"/>
+            </svg>
+          </div>
+          <div>
+            <div style="font-size:12px;font-weight:500;color:#e0e3f0;margin-bottom:2px;">血管 Mask</div>
+            <div class="filename" id="mask-filename">选择 .nii.gz 或 .nrrd 文件</div>
+          </div>
+          <div class="file-indicator" id="mask-ind"></div>
+        </label>
+      </div>
+
+      <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
+        <button class="btn btn-primary" id="btn-upload" disabled>上传并预览原始血管</button>
+        <button class="btn btn-predict" id="btn-predict" disabled>运行分支命名模型</button>
+      </div>
+
+      <div class="status-bar" style="margin-top:10px;" id="status-bar">
+        <div class="status-dot idle" id="status-dot"></div>
+        <span id="status-text" style="font-size:12px;">等待上传</span>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="section" id="legend-section" style="display:none">
+      <div class="section-label">分支图例</div>
+      <div class="legend" id="legend">
+        <div class="legend-item" onclick="toggleBranch('LM',this)" data-branch="LM">
+          <div class="legend-swatch" style="background:var(--lm)"></div>
+          <span class="legend-name">LM</span>
+          <span class="legend-full">左主干</span>
+          <span class="legend-count" id="cnt-LM">—</span>
+        </div>
+        <div class="legend-item" onclick="toggleBranch('LAD',this)" data-branch="LAD">
+          <div class="legend-swatch" style="background:var(--lad)"></div>
+          <span class="legend-name">LAD</span>
+          <span class="legend-full">左前降支</span>
+          <span class="legend-count" id="cnt-LAD">—</span>
+        </div>
+        <div class="legend-item" onclick="toggleBranch('LCX',this)" data-branch="LCX">
+          <div class="legend-swatch" style="background:var(--lcx)"></div>
+          <span class="legend-name">LCX</span>
+          <span class="legend-full">左回旋支</span>
+          <span class="legend-count" id="cnt-LCX">—</span>
+        </div>
+        <div class="legend-item" onclick="toggleBranch('RCA',this)" data-branch="RCA">
+          <div class="legend-swatch" style="background:var(--rca)"></div>
+          <span class="legend-name">RCA</span>
+          <span class="legend-full">右冠状动脉</span>
+          <span class="legend-count" id="cnt-RCA">—</span>
+        </div>
+        <div class="legend-item" onclick="toggleBranch('Other',this)" data-branch="Other">
+          <div class="legend-swatch" style="background:var(--other)"></div>
+          <span class="legend-name">Other</span>
+          <span class="legend-full">其他分支</span>
+          <span class="legend-count" id="cnt-Other">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- View Controls -->
+    <div class="section">
+      <div class="section-label">视图控制</div>
+      <div class="controls">
+        <div class="ctrl-row">
+          <span class="ctrl-label">透明度</span>
+          <input type="range" id="opacity-slider" min="10" max="100" value="90"
+            oninput="setOpacity(this.value/100);document.getElementById('opacity-val').textContent=this.value+'%'">
+          <span class="ctrl-val" id="opacity-val">90%</span>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label">环境光</span>
+          <input type="range" id="ambient-slider" min="10" max="100" value="40"
+            oninput="setAmbient(this.value/100);document.getElementById('ambient-val').textContent=this.value+'%'">
+          <span class="ctrl-val" id="ambient-val">40%</span>
+        </div>
+        <div class="toggle-row" style="margin-top:4px;">
+          <button class="toggle-btn" id="btn-wireframe" onclick="toggleWireframe(this)">线框</button>
+          <button class="toggle-btn on" id="btn-rotate" onclick="toggleAutoRotate(this)">自动旋转</button>
+          <button class="toggle-btn" onclick="resetCamera()">复位</button>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ─── Viewport ─── -->
+  <main class="viewport" id="viewport">
+    <canvas id="three-canvas"></canvas>
+
+    <div class="hint" id="hint">
+      <div class="hint-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.2">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+          <path d="M12 6v6l4 2"/>
+        </svg>
+      </div>
+      <h2>上传 CCTA 影像开始分析</h2>
+      <p>支持 NIfTI (.nii, .nii.gz) 和 NRRD (.nrrd) 格式<br>上传后立即可见3D血管结构</p>
+    </div>
+
+    <div id="tooltip">
+      <div class="tt-name" id="tt-name">—</div>
+      <div class="tt-sub"  id="tt-sub">—</div>
+    </div>
+
+    <div class="phase-strip" id="phase-strip" style="display:none">
+      <div class="phase-pill active" id="pill-raw" onclick="showPhase('raw')">原始血管</div>
+      <div class="phase-pill" id="pill-pred" onclick="showPhase('pred')" style="display:none">分支命名</div>
+    </div>
+
+    <div class="corner-controls">
+      <div class="corner-badge" id="poly-count">—</div>
+      <div class="corner-badge">拖拽旋转 · 滚轮缩放</div>
+    </div>
+
+    <div id="loading-overlay">
+      <div class="spinner"></div>
+      <div class="loading-text" id="loading-text">处理中...</div>
+      <div class="loading-sub"  id="loading-sub">请稍候</div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ─────────────────────────────────────────────
+// Three.js 场景初始化
+// ─────────────────────────────────────────────
+const canvas    = document.getElementById('three-canvas');
+const viewport  = document.getElementById('viewport');
+const renderer  = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
+camera.position.set(0, 0, 4);
+
+// Lights
+const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+scene.add(ambient);
+const dir1 = new THREE.DirectionalLight(0xffffff, 0.9);
+dir1.position.set(3, 4, 3);
+scene.add(dir1);
+const dir2 = new THREE.DirectionalLight(0x4a9eff, 0.3);
+dir2.position.set(-3, -2, 2);
+scene.add(dir2);
+const hemi = new THREE.HemisphereLight(0x0d1428, 0x07090f, 0.5);
+scene.add(hemi);
+
+// Pivot group
+const pivot = new THREE.Group();
+scene.add(pivot);
+const axesHelper = new THREE.AxesHelper(2);
+scene.add(axesHelper);
+
+// ─────────────────────────────────────────────
+// Resize
+// ─────────────────────────────────────────────
+function resize() {
+  const w = viewport.clientWidth, h = viewport.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(viewport);
+resize();
+
+// ─────────────────────────────────────────────
+// Orbit controls (manual)
+// ─────────────────────────────────────────────
+let isDragging = false, prevX = 0, prevY = 0;
+let rotX = 0.2, rotY = 0.4, zoom = 4;
+let autoRotate = true;
+
+canvas.addEventListener('mousedown',  e => { isDragging = true; prevX = e.clientX; prevY = e.clientY; autoRotate = false; document.getElementById('btn-rotate').classList.remove('on'); });
+window.addEventListener('mouseup',    () => { isDragging = false; });
+canvas.addEventListener('mousemove',  e => {
+  if (!isDragging) return;
+  rotY -= (e.clientX - prevX) * 0.008;
+  rotX += (e.clientY - prevY) * 0.008;
+  prevX = e.clientX; prevY = e.clientY;
+  doRaycast(e);
+});
+canvas.addEventListener('wheel', e => { zoom = Math.max(1.2, Math.min(12, zoom + e.deltaY * 0.004)); });
+canvas.addEventListener('touchstart', e => { isDragging = true; prevX = e.touches[0].clientX; prevY = e.touches[0].clientY; autoRotate = false; });
+canvas.addEventListener('touchmove',  e => {
+  rotY += (e.touches[0].clientX - prevX) * 0.01;
+  rotX += (e.touches[0].clientY - prevY) * 0.01;
+  prevX = e.touches[0].clientX; prevY = e.touches[0].clientY;
+});
+canvas.addEventListener('touchend', () => { isDragging = false; });
+
+// ─────────────────────────────────────────────
+// Raycasting / tooltip
+// ─────────────────────────────────────────────
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const tooltip = document.getElementById('tooltip');
+const BRANCH_FULL = { LM:'左主干', LAD:'左前降支', LCX:'左回旋支', RCA:'右冠状动脉', Other:'其他分支' };
+let allMeshes = [];
+
+function doRaycast(e) {
+  const rect = canvas.getBoundingClientRect();
+  mouse.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+  mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(allMeshes.filter(m => m.visible));
+  if (hits.length) {
+    const d = hits[0].object.userData;
+    document.getElementById('tt-name').textContent = d.name ? `${d.name}  ${BRANCH_FULL[d.name]||''}` : '血管';
+    document.getElementById('tt-sub').textContent  = d.phase === 'pred' ? '已命名' : '原始血管';
+    tooltip.classList.add('show');
+  } else {
+    tooltip.classList.remove('show');
+  }
+}
+canvas.addEventListener('mousemove', doRaycast);
+canvas.addEventListener('mouseleave', () => tooltip.classList.remove('show'));
+
+// ─────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────
+let taskId = null;
+let currentPhase = 'raw';
+const meshGroups = { raw: [], pred: {} }; // pred: {branchName: [mesh,...]}
+const branchVisible = { LM: true, LAD: true, LCX: true, RCA: true, Other: true };
+let currentOpacity = 0.9;
+let wireframe = false;
+
+// ─────────────────────────────────────────────
+// Build Three.js geometry from JSON mesh data
+// ─────────────────────────────────────────────
+function buildMesh(meshData, color, phase, name) {
+  const geo = new THREE.BufferGeometry();
+  const verts = new Float32Array(meshData.vertices.flat());
+  const idx   = new Uint32Array(meshData.faces.flat());
+  geo.setAttribute('position', new THREE.BufferFloat32BufferAttribute(verts, 3));
+  geo.setIndex(new THREE.BufferAttribute(idx, 1));
+  geo.computeVertexNormals();
+
+  const mat = new THREE.MeshPhongMaterial({
+    color: color,
+    shininess: 50,
+    transparent: true,
+    opacity: currentOpacity,
+    wireframe: wireframe,
+    side: THREE.DoubleSide,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.scale.set(-1, -1, 1);
+  mesh.userData = { phase, name };
+  pivot.add(mesh);
+  allMeshes.push(mesh);
+  return mesh;
+}
+
+// Fix: BufferFloat32BufferAttribute doesn't exist, use correct API
+function buildMeshFixed(meshData, color, phase, name) {
+  const geo = new THREE.BufferGeometry();
+  const verts = [];
+  meshData.vertices.forEach(v => { verts.push(v[2], v[1], v[0]); });
+  const faces = [];
+  meshData.faces.forEach(f => { faces.push(f[0], f[2], f[1]); });
+
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  geo.setIndex(faces);
+  geo.computeVertexNormals();
+
+  const mat = new THREE.MeshPhongMaterial({
+    color: color,
+    shininess: 50,
+    transparent: true,
+    opacity: currentOpacity,
+    wireframe: wireframe,
+    side: THREE.DoubleSide,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.userData = { phase, name };
+  pivot.add(mesh);
+  allMeshes.push(mesh);
+  return mesh;
+}
+
+// ─────────────────────────────────────────────
+// Render loop
+// ─────────────────────────────────────────────
+function animate() {
+  requestAnimationFrame(animate);
+  if (autoRotate) rotY += 0.003;
+  pivot.rotation.x = rotX;
+  pivot.rotation.y = rotY;
+  camera.position.z = zoom;
+  renderer.render(scene, camera);
+}
+animate();
+
+// ─────────────────────────────────────────────
+// File upload UI
+// ─────────────────────────────────────────────
+let cctaFile = null, maskFile = null;
+
+document.getElementById('ccta-input').addEventListener('change', function() {
+  cctaFile = this.files[0];
+  if (cctaFile) {
+    document.getElementById('ccta-filename').textContent = cctaFile.name;
+    document.getElementById('ccta-filename').classList.add('set');
+    document.getElementById('ccta-ind').classList.add('ready');
+    document.getElementById('ccta-zone').classList.add('ready');
+  }
+  checkReady();
+});
+
+document.getElementById('mask-input').addEventListener('change', function() {
+  maskFile = this.files[0];
+  if (maskFile) {
+    document.getElementById('mask-filename').textContent = maskFile.name;
+    document.getElementById('mask-filename').classList.add('set');
+    document.getElementById('mask-ind').classList.add('ready');
+    document.getElementById('mask-zone').classList.add('ready');
+  }
+  checkReady();
+});
+
+function checkReady() {
+  document.getElementById('btn-upload').disabled = !(cctaFile && maskFile);
+}
+
+// ─────────────────────────────────────────────
+// Upload & get raw mesh
+// ─────────────────────────────────────────────
+document.getElementById('btn-upload').addEventListener('click', async () => {
+  setStatus('loading', '正在上传文件并生成网格...');
+  showLoading(true, '上传中...', '转换 NIfTI → 三角网格');
+
+  const fd = new FormData();
+  fd.append('ccta_file', cctaFile);
+  fd.append('mask_file', maskFile);
+
+  try {
+    const res  = await fetch('/api/upload', { method:'POST', body: fd });
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.detail || '上传失败');
+
+    taskId = data.task_id;
+
+    // Clear old meshes
+    clearScene();
+
+    // Build raw (single-color) mesh
+    const rawMesh = buildMeshFixed(data.raw_mesh, 0x5dcaa5, 'raw', null);
+    meshGroups.raw.push(rawMesh);
+
+    // Update poly count
+    const polyCount = data.raw_mesh.faces.length;
+    document.getElementById('poly-count').textContent = `${polyCount.toLocaleString()} 三角面`;
+
+    setStatus('success', `上传成功 · 任务 ${taskId}`);
+    showPhase('raw');
+    document.getElementById('hint').style.opacity = '0';
+    document.getElementById('phase-strip').style.display = 'flex';
+    document.getElementById('btn-predict').disabled = false;
+
+  } catch(e) {
+    setStatus('error', '错误：' + e.message);
+  } finally {
+    showLoading(false);
+  }
+});
+
+// ─────────────────────────────────────────────
+// Run prediction
+// ─────────────────────────────────────────────
+document.getElementById('btn-predict').addEventListener('click', async () => {
+  if (!taskId) return;
+  setStatus('loading', '模型推理中，请稍候...');
+  showLoading(true, '运行 GNN 模型', '图结构构建 → GINEConv → 分支分类');
+
+  try {
+    const res  = await fetch(`/api/predict/${taskId}`, { method:'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || '推理失败');
+
+    // Build per-branch colored meshes
+    data.branches.forEach(branch => {
+      const colorHex = parseInt(branch.color.replace('#', ''), 16);
+      const mesh = buildMeshFixed(branch.mesh, colorHex, 'pred', branch.name);
+      mesh.visible = false; // hide until we switch phase
+      if (!meshGroups.pred[branch.name]) meshGroups.pred[branch.name] = [];
+      meshGroups.pred[branch.name].push(mesh);
+
+      // Update legend count
+      const cnt = document.getElementById('cnt-' + branch.name);
+      if (cnt) cnt.textContent = branch.mesh.faces.length.toLocaleString();
+    });
+
+    // Show predicted phase
+    document.getElementById('pill-pred').style.display = 'block';
+    document.getElementById('legend-section').style.display = 'block';
+    setStatus('success', `预测完成 · ${data.branches.length} 个分支`);
+    showPhase('pred');
+
+  } catch(e) {
+    setStatus('error', '错误：' + e.message);
+  } finally {
+    showLoading(false);
+  }
+});
+
+// ─────────────────────────────────────────────
+// Phase switching
+// ─────────────────────────────────────────────
+function showPhase(phase) {
+  currentPhase = phase;
+
+  // Toggle raw meshes
+  meshGroups.raw.forEach(m => m.visible = (phase === 'raw'));
+
+  // Toggle pred meshes
+  Object.entries(meshGroups.pred).forEach(([name, meshes]) => {
+    meshes.forEach(m => m.visible = (phase === 'pred') && branchVisible[name] !== false);
+  });
+
+  // Pills
+  document.getElementById('pill-raw').classList.toggle('active', phase === 'raw');
+  document.getElementById('pill-pred').classList.toggle('active', phase === 'pred');
+
+  // Legend
+  document.getElementById('legend-section').style.display = (phase === 'pred') ? 'block' : 'none';
+}
+window.showPhase = showPhase;
+
+// ─────────────────────────────────────────────
+// Branch toggle
+// ─────────────────────────────────────────────
+function toggleBranch(name, el) {
+  branchVisible[name] = !branchVisible[name];
+  el.style.opacity = branchVisible[name] ? '1' : '0.35';
+  if (meshGroups.pred[name]) {
+    meshGroups.pred[name].forEach(m => m.visible = branchVisible[name]);
+  }
+}
+window.toggleBranch = toggleBranch;
+
+// ─────────────────────────────────────────────
+// View controls
+// ─────────────────────────────────────────────
+function setOpacity(v) {
+  currentOpacity = v;
+  allMeshes.forEach(m => m.material.opacity = v);
+}
+function setAmbient(v) {
+  ambient.intensity = v;
+}
+function toggleWireframe(btn) {
+  wireframe = !wireframe;
+  btn.classList.toggle('on', wireframe);
+  allMeshes.forEach(m => m.material.wireframe = wireframe);
+}
+function toggleAutoRotate(btn) {
+  autoRotate = !autoRotate;
+  btn.classList.toggle('on', autoRotate);
+}
+function resetCamera() {
+  rotX = 0.2; rotY = 0.4; zoom = 4;
+}
+window.setOpacity = setOpacity;
+window.setAmbient = setAmbient;
+window.toggleWireframe = toggleWireframe;
+window.toggleAutoRotate = toggleAutoRotate;
+window.resetCamera = resetCamera;
+
+// ─────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────
+function clearScene() {
+  [...meshGroups.raw].forEach(m => { pivot.remove(m); m.geometry.dispose(); m.material.dispose(); });
+  Object.values(meshGroups.pred).flat().forEach(m => { pivot.remove(m); m.geometry.dispose(); m.material.dispose(); });
+  meshGroups.raw = [];
+  meshGroups.pred = {};
+  allMeshes = [];
+}
+
+function setStatus(type, text) {
+  const dot = document.getElementById('status-dot');
+  dot.className = 'status-dot ' + type;
+  document.getElementById('status-text').textContent = text;
+}
+
+function showLoading(show, title='', sub='') {
+  const ov = document.getElementById('loading-overlay');
+  ov.classList.toggle('show', show);
+  if (title) document.getElementById('loading-text').textContent = title;
+  if (sub)   document.getElementById('loading-sub').textContent  = sub;
+}
+</script>
+</body>
+</html>
